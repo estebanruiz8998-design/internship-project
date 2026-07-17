@@ -5,7 +5,7 @@ __pycache__/
 .venv/
 venv/
 
-# Salidas generadas del optimizador (el informe vivo se regenera en cada corrida).
-# Los CSV de entrada en data/ SÍ se versionan como configuración/dato de ejemplo.
-/reports/informe_tesoreria.html
-/reports/preview.png
+# Salidas generadas en reports/ (se regeneran en cada corrida).
+# Los CSV de entrada en data/ y los ejemplos en docs/ SÍ se versionan.
+/reports/*.html
+/reports/*.png

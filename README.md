@@ -6,10 +6,21 @@ lo que habría ganado una asignación **manual (statu quo)** de los fondos del d
 frente a lo que gana una asignación **optimizada** — cuantificado en **puntos
 básicos (bps)** y en **pesos (COP)**.
 
-La salida es un **informe de una página** (HTML autocontenido, estilo memo
-interno, en español) pensado para mostrárselo a un supervisor.
+Hay dos salidas, ambas en español:
 
-![Vista del informe](docs/preview.png)
+1. **Panel interactivo** (`docs/dashboard.html`) — un tablero autocontenido donde
+   se pueden **mover los parámetros de cumplimiento** (encaje, concentración,
+   liquidez, tolerancia de duración, castigo DTF) y **cambiar de día**: el
+   optimizador y el control de cumplimiento **recalculan en vivo**. Ábrelo con
+   doble clic en cualquier navegador (no requiere servidor ni instalación).
+2. **Informe de una página** (`reports/informe_tesoreria.html`) — un memo estático
+   listo para imprimir/enviar a un supervisor, que genera el motor en Python.
+
+![Vista del panel interactivo](docs/dashboard_preview.png)
+
+> El panel reimplementa el **mismo modelo** que el motor en Python (los 7 agentes)
+> para poder correr 100% en el navegador; los números caen en los mismos rangos.
+> El motor en Python sigue siendo la fuente de verdad y produce el informe estático.
 
 ---
 
@@ -134,5 +145,16 @@ optimizer/
   rationale.py                # racional en lenguaje llano
 data/                         # CSV de entrada (config/ejemplo)
 reports/                      # informe generado (salida)
-docs/                         # informe de ejemplo + vista previa
+docs/
+  dashboard.html              # PANEL INTERACTIVO (abrir en el navegador)
+  dashboard_preview.png       # vista previa del panel
+  informe_ejemplo.html        # informe estático de ejemplo
+tests/                        # pruebas (unittest, solo stdlib)
 ```
+
+## Panel interactivo vs. motor Python
+
+- **Para explorar y presentar** (mover parámetros, cambiar de día en vivo): abre
+  `docs/dashboard.html`.
+- **Para generar el memo estático** o integrar con datos reales: usa el motor en
+  Python (`run_daily_optimization.py`), que es la fuente de verdad del modelo.
