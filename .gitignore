@@ -1,0 +1,11 @@
+# Artefactos de Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Salidas generadas del optimizador (el informe vivo se regenera en cada corrida).
+# Los CSV de entrada en data/ SÍ se versionan como configuración/dato de ejemplo.
+/reports/informe_tesoreria.html
+/reports/preview.png

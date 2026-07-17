@@ -1,0 +1,12 @@
+id,tipo,cooperativa,monto,plazo_dias,tipo_tasa,spread_bps,tasa_ea
+F01,CDT_DORADO,Cooperativa Popular de Boyacá,2110000000,180,FIJA,0.0,0.100414
+F02,PAGARE,Fondo de Empleados Solidaridad Andina,2710000000,180,FIJA,0.0,0.106459
+F03,CDT_DORADO,Fondo Cooperativo del Café,810000000,360,IBR,80.7,0.126573
+F04,CDT_DORADO,Cooperativa El Progreso del Oriente,2920000000,360,FIJA,0.0,0.104019
+F05,CDT_DORADO,Cooperativa Industrial del Caribe,1270000000,90,FIJA,0.0,0.097406
+F06,PAGARE,Coop. de Ahorro y Crédito Los Andes,2840000000,180,FIJA,0.0,0.106956
+F07,CDT_DORADO,Fondo Solidario de los Llanos,2350000000,180,FIJA,0.0,0.100539
+F08,CDT_DORADO,Cooperativa de Transportadores Unidos del Sur,2640000000,360,FIJA,0.0,0.107617
+F09,CDT_DORADO,Cooperativa Lechera del Norte,2200000000,90,DTF,187.8,0.126836
+F10,CDT_DORADO,Cooperativa Médica San Rafael,2260000000,180,FIJA,0.0,0.098280
+F11,CDT_DORADO,Cooperativa Agraria del Valle Verde,1980000000,180,FIJA,0.0,0.097828

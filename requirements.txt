@@ -1,0 +1,8 @@
+# El Optimizador Diario de Margen de Tesorería NO tiene dependencias externas:
+# usa únicamente la librería estándar de Python (3.9 o superior).
+#
+# El informe se genera como HTML autocontenido (CSS embebido + gráfico SVG en
+# línea), sin numpy/pandas/matplotlib ni motores de plantillas, para que corra
+# en cualquier entorno sin instalar nada.
+#
+#   python run_daily_optimization.py
