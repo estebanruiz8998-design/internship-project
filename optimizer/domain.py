@@ -285,28 +285,35 @@ def calcular_metricas_asignacion(
     costo_fondos_ea: float,
     total_solicitudes: int,
     horizonte_dias: float,
+    costo_encaje_anual: float = 0.0,
 ) -> None:
     """Calcula y rellena las métricas de una asignación (in place).
 
     Usado de forma IDÉNTICA por la línea base y por la optimización, para que el
     margen en bps y en COP sea comparable entre ambas rutas de código.
 
-      * margen_bps       : spread anualizado promedio ponderado por monto (bps).
-                           Métrica NEUTRAL AL HORIZONTE (por año), la comparable.
+      * margen_bps       : spread anualizado promedio ponderado por monto (bps),
+                           NETO del costo del encaje. Métrica neutral al horizonte.
       * margen_cop_total : ese margen anualizado llevado al horizonte de fondeo
                            común (mismo horizonte para ambas estrategias), de modo
                            que el delta en COP NO es un artefacto de plazos: refleja
                            mejor selección, no simplemente activos más largos.
       * duracion         : plazo promedio ponderado por monto.
+
+    costo_encaje_anual : costo de fondos que el banco paga por las reservas de
+        encaje (encaje_total * WACF), que quedan improductivas. Se descuenta del
+        margen para no sobreestimar el P&L absoluto. Es constante entre estrategias
+        (mismo pool), por lo que se cancela en el delta base-vs-óptima.
     """
     posiciones = asignacion.posiciones
     monto_total = sum(p.monto for p in posiciones)
 
     if monto_total > 0:
-        asignacion.margen_bps = (
+        margen_anual = (
             sum(p.monto * p.spread_anual(costo_fondos_ea) for p in posiciones)
-            / monto_total
-        ) * 10_000.0
+            - costo_encaje_anual
+        )
+        asignacion.margen_bps = (margen_anual / monto_total) * 10_000.0
         asignacion.duracion_ponderada_dias = (
             sum(p.monto * p.plazo_dias for p in posiciones) / monto_total
         )

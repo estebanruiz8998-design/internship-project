@@ -66,8 +66,11 @@ def generar_lote_fondeo(rng: random.Random, tasas: dict) -> list[dict]:
     dtf = tasas["dtf_ea"]
     ibr3m = tasas["ibr_3m"]
 
-    # Tasa pasiva base (lo que paga el banco) para CDT fija, por plazo.
-    base_cdt_fija = {90: 0.0960, 180: 0.1000, 360: 0.1050}
+    # Tasa pasiva base (lo que paga el banco) para CDT fija, por plazo. Se ancla
+    # al nivel del tramo corto de la curva TES y por encima de la DTF E.A., para
+    # que el fondeo fijo sea consistente con su propio referente flotante y no haya
+    # un carry libre de riesgo CDT-vs-TES.
+    base_cdt_fija = {90: 0.1100, 180: 0.1140, 360: 0.1180}
 
     instrumentos = []
     for i in range(n):
@@ -116,6 +119,16 @@ def generar_lote_fondeo(rng: random.Random, tasas: dict) -> list[dict]:
             "spread_bps": f"{spread_bps:.1f}",
             "tasa_ea": f"{tasa:.6f}",
         })
+
+    # Garantizar al menos un instrumento indexado a DTF para que el riesgo de
+    # transición siempre quede ejercido, sin importar la semilla.
+    if not any(x["tipo_tasa"] == "DTF" for x in instrumentos):
+        obj = instrumentos[0]
+        sp = rng.uniform(80, 200)
+        obj["tipo_tasa"] = "DTF"
+        obj["spread_bps"] = f"{sp:.1f}"
+        obj["tasa_ea"] = f"{dtf + sp / 10_000.0:.6f}"
+
     return instrumentos
 
 
@@ -124,9 +137,11 @@ def generar_solicitudes_credito(
 ) -> list[dict]:
     """Genera solicitudes de crédito de tesorería.
 
-    La demanda total se calibra MUY por encima de la capacidad de crédito (~1,8x
-    el cupo tras el colchón de liquidez) para que la selección de a quién fondear
-    sea una decisión real y no trivial: no alcanza para todos.
+    La demanda total apunta a ~1,8x la capacidad de crédito (el cupo tras el
+    colchón de liquidez). El número de solicitudes está acotado (<= 16), así que
+    la demanda realizada queda en el rango ~1,5-1,8x la capacidad según la semilla;
+    en todo caso hay escasez (demanda > capacidad) y la selección de a quién
+    fondear es una decisión real, no trivial: no alcanza para todos.
 
     Precio basado en riesgo PARCIAL: la prima por peor calificación NO compensa
     del todo la mayor pérdida esperada, de modo que el rendimiento AJUSTADO POR
@@ -148,7 +163,7 @@ def generar_solicitudes_credito(
     def ajuste_plazo(dias: int) -> float:
         return 0.0000 + (dias - 90) / 360.0 * 0.0080
 
-    base_credito = 0.1300  # tasa base de crédito de tesorería (E.A.)
+    base_credito = 0.1350  # tasa base de crédito de tesorería (E.A.)
 
     solicitudes = []
     total = 0.0
@@ -205,6 +220,13 @@ def generar_solicitudes_credito(
             "orden_llegada": orden,
         })
         total += monto
+
+    # Garantizar al menos una solicitud indexada a DTF (riesgo de transición
+    # siempre ejercido en la demanda, sin importar la semilla).
+    if solicitudes and not any(s["tipo_tasa"] == "DTF" for s in solicitudes):
+        s = solicitudes[0]
+        s["tipo_tasa"] = "DTF"
+        s["spread_bps"] = f"{(float(s['tasa_ofrecida_ea']) - dtf) * 10_000.0:.1f}"
 
     return solicitudes
 

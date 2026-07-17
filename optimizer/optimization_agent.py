@@ -62,6 +62,7 @@ class OptimizationAgent:
 
     def optimizar(
         self, pool: PoolFondeo, solicitudes: list[SolicitudCredito],
+        incluir_ids: frozenset[str] = frozenset(),
     ) -> list[Asignacion]:
         invertible = pool.monto_invertible
         cof = pool.costo_fondos_ea
@@ -82,12 +83,19 @@ class OptimizationAgent:
             and s.monto_solicitado <= tope_coop + 1e-6
         ]
         if len(viables) > _MAX_ENUMERACION:
-            # Salvaguarda: quedarse con las de mayor densidad de margen.
-            viables = sorted(
-                viables,
+            # Salvaguarda de tamaño: quedarse con las de mayor densidad de margen,
+            # PERO reteniendo siempre las que la línea base fondeó (incluir_ids).
+            # Así la asignación de la línea base sigue estando dentro del espacio
+            # de búsqueda y el delta óptima-vs-base nunca puede volverse negativo,
+            # aun cuando se activa la truncación.
+            forzadas = [s for s in viables if s.id in incluir_ids]
+            resto = sorted(
+                (s for s in viables if s.id not in incluir_ids),
                 key=lambda s: self._margen_credito(s, cof) / s.monto_solicitado,
                 reverse=True,
-            )[:_MAX_ENUMERACION]
+            )
+            cupo = max(0, _MAX_ENUMERACION - len(forzadas))
+            viables = forzadas + resto[:cupo]
 
         n = len(viables)
         candidatos: list[tuple[float, frozenset, dict]] = []
@@ -174,5 +182,6 @@ class OptimizationAgent:
         calcular_metricas_asignacion(
             asignacion, pool.costo_fondos_ea, total_solicitudes,
             horizonte_dias=pool.duracion_ponderada_dias,
+            costo_encaje_anual=pool.encaje_total * pool.costo_fondos_ea,
         )
         return asignacion

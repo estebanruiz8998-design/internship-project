@@ -7,6 +7,7 @@ TES. No es texto de relleno: se construye a partir de las decisiones efectivas.
 
 from __future__ import annotations
 
+from . import config
 from .domain import (
     Asignacion,
     PoolFondeo,
@@ -26,17 +27,24 @@ def generar_rationale(
     fondeadas = [s for s in solicitudes if s.id in fondeadas_ids]
     rechazadas = [s for s in solicitudes if s.id not in fondeadas_ids]
 
+    cof = pool.costo_fondos_ea
+    aporte = lambda s: s.monto_solicitado * (s.rendimiento_ajustado_ea - cof)
+
     frases: list[str] = []
 
-    # Frase 1: qué se fondeó y con qué criterio.
+    # Frase 1: qué se fondeó y con qué criterio REAL (el optimizador maximiza el
+    # aporte TOTAL de margen ajustado por riesgo sujeto a las restricciones, no un
+    # ranking por tasa: por eso un crédito grande con buen spread puede entrar por
+    # encima de otro con tasa ajustada algo mayor pero monto menor).
     if fondeadas:
-        mejores = sorted(fondeadas, key=lambda s: s.rendimiento_ajustado_ea, reverse=True)
+        mejores = sorted(fondeadas, key=aporte, reverse=True)
         nombres = [f"{s.cooperativa} (calif. {s.calificacion})" for s in mejores[:2]]
         frases.append(
-            f"Se priorizaron las {len(fondeadas)} solicitudes con mayor margen "
-            f"ajustado por pérdida esperada —encabezadas por "
-            f"{' y '.join(nombres)}—, desplegando {formato_cop(asignacion.monto_en_credito)} "
-            f"en crédito de tesorería."
+            f"Se seleccionó el conjunto de {len(fondeadas)} solicitudes que "
+            f"maximiza el aporte total de margen ajustado por pérdida esperada, "
+            f"dentro de las restricciones —con mayor aporte de "
+            f"{' y '.join(nombres)}—, desplegando "
+            f"{formato_cop(asignacion.monto_en_credito)} en crédito de tesorería."
         )
     else:
         frases.append(
@@ -44,10 +52,15 @@ def generar_rationale(
             "al TES bajo las restricciones del día; el pool permaneció en TES."
         )
 
-    # Frase 2: por qué se dejó algo por fuera (margen, concentración o transición).
+    # Frase 2: por qué se dejó algo por fuera. Solo se menciona la concentración
+    # si el tope realmente resultó vinculante para alguna cooperativa fondeada.
     if rechazadas:
         peor = min(rechazadas, key=lambda s: s.rendimiento_ajustado_ea)
         dtf_rechazadas = [s for s in rechazadas if s.indexado_dtf]
+        tope = invertible * config.MAX_COUNTERPARTY_PCT
+        concentracion_vinculante = any(
+            v > tope - 1_000_000 for v in asignacion.exposicion_por_cooperativa.values()
+        )
         if dtf_rechazadas:
             ejemplo = dtf_rechazadas[0]
             frases.append(
@@ -56,11 +69,19 @@ def generar_rationale(
                 f"perdieron atractivo tras el castigo por riesgo de transición DTF→IBR, "
                 f"pese a una tasa nominal competitiva."
             )
+        elif concentracion_vinculante:
+            frases.append(
+                f"Se descartaron {len(rechazadas)} solicitudes: unas por aportar "
+                f"menos margen ajustado por riesgo (p. ej. {peor.cooperativa}, calif. "
+                f"{peor.calificacion}) y otras por chocar contra el tope de "
+                f"concentración por cooperativa, que resultó vinculante."
+            )
         else:
             frases.append(
-                f"Se descartaron {len(rechazadas)} solicitudes por menor margen "
-                f"ajustado por riesgo (p. ej. {peor.cooperativa}, calif. "
-                f"{peor.calificacion}) o por chocar contra el tope de concentración."
+                f"Se descartaron {len(rechazadas)} solicitudes por aportar menos "
+                f"margen ajustado por riesgo dentro del cupo disponible (p. ej. "
+                f"{peor.cooperativa}, calif. {peor.calificacion}); su colocación "
+                f"habría desplazado a otras de mayor aporte o rendido menos que el TES."
             )
 
     # Frase 3: por qué parte quedó en TES (liquidez + calce de duración).

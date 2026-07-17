@@ -64,7 +64,8 @@ class FundingAgent:
 
         # Costo de fondos: tasa pasiva promedio ponderada por el nominal captado
         # (el banco paga intereses sobre el nominal, no sobre el invertible).
-        wacf = sum(i.monto * i.tasa_ea for i in instrumentos) / captado_bruto
+        wacf = (sum(i.monto * i.tasa_ea for i in instrumentos) / captado_bruto
+                if captado_bruto else 0.0)
         duracion = dur_num / captado_bruto if captado_bruto else 0.0
 
         return PoolFondeo(

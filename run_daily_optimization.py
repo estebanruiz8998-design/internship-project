@@ -92,8 +92,11 @@ def main() -> None:
           f"{formato_cop(baseline.margen_cop_total)} · "
           f"{baseline.creditos_fondeados} créditos fondeados")
 
-    # 6) Optimization Agent (top 3: óptima + 2 alternativas).
-    top = OptimizationAgent(snapshot).optimizar(pool, solicitudes)
+    # 6) Optimization Agent (top 3: óptima + 2 alternativas). Se le pasan las
+    #    solicitudes que fondeó la línea base para garantizar que su asignación
+    #    quede dentro del espacio de búsqueda (delta nunca negativo por construcción).
+    incluir = frozenset(p.referencia for p in baseline.posiciones_credito())
+    top = OptimizationAgent(snapshot).optimizar(pool, solicitudes, incluir_ids=incluir)
 
     # 7) Compliance / Guardrail Agent (re-valida y descarta lo que no aprueba).
     guardrail = GuardrailAgent(pool)

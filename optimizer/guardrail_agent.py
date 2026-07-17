@@ -50,10 +50,15 @@ class GuardrailAgent:
             observado=f"Desplegado {formato_cop(desplegado)}",
         ))
 
-        # 2) Concentración por cooperativa.
+        # 2) Concentración por cooperativa. Se RECALCULA desde las posiciones de
+        #    crédito (no se confía en el campo poblado por el optimizador): esto es
+        #    lo que hace del control una re-validación realmente independiente.
         tope = invertible * config.MAX_COUNTERPARTY_PCT
+        exp_recalc: dict[str, float] = {}
+        for p in asignacion.posiciones_credito():
+            exp_recalc[p.cooperativa] = exp_recalc.get(p.cooperativa, 0.0) + p.monto
         peor_coop, peor_exp = None, 0.0
-        for coop, exp in asignacion.exposicion_por_cooperativa.items():
+        for coop, exp in exp_recalc.items():
             if exp > peor_exp:
                 peor_coop, peor_exp = coop, exp
         conc_ok = peor_exp <= tope + 1.0
@@ -88,8 +93,15 @@ class GuardrailAgent:
             observado=f"{formato_cop(liquidez)}",
         ))
 
-        # 4) Calce de duración fondeo vs. despliegue.
-        dur_despliegue = asignacion.duracion_ponderada_dias
+        # 4) Calce de duración fondeo vs. despliegue. También se RECALCULA la
+        #    duración del despliegue desde las posiciones (misma definición que
+        #    calcular_metricas_asignacion / elegir_tenor_calce), sin confiar en el
+        #    campo poblado por el optimizador.
+        monto_desplegado = sum(p.monto for p in asignacion.posiciones)
+        dur_despliegue = (
+            sum(p.monto * p.plazo_dias for p in asignacion.posiciones) / monto_desplegado
+            if monto_desplegado else 0.0
+        )
         dur_fondeo = self.pool.duracion_ponderada_dias
         brecha = abs(dur_despliegue - dur_fondeo)
         dur_ok = brecha <= config.DURATION_TOLERANCE_DAYS + 1e-6

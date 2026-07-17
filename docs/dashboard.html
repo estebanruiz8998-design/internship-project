@@ -1,6 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Coopcentral — Optimizador de Margen (panel interactivo)</title></head><body>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Coopcentral — Optimizador de Margen (panel interactivo)</title></head><body>
 <style>
   :root{
     color-scheme: light;
@@ -311,7 +309,7 @@
         <div class="summary">
           <div class="lead">
             <div class="eyebrow">Resultado del día</div>
-            <div class="t" style="margin-top:6px">Margen adicional que captura la optimización frente a la asignación manual (FCFS).</div>
+            <div class="t" style="margin-top:6px">Margen adicional que captura la optimización frente a la asignación manual (por orden de llegada).</div>
             <div class="sub">Mismo pool, mismas reglas de cumplimiento · dos rutas de código distintas.</div>
           </div>
           <div class="delta">
@@ -423,7 +421,7 @@ function generarDia(seed){
   // Fondeo
   const nF=randint(r,9,13);
   const coopsF=shuffle(r,COOPS).slice(0,Math.min(nF,COOPS.length));
-  const baseCdt={90:0.0960,180:0.1000,360:0.1050};
+  const baseCdt={90:0.1100,180:0.1140,360:0.1180};  // anclado al tramo corto TES / >= DTF
   const instrumentos=[];
   for(let i=0;i<nF;i++){
     const coop=coopsF[i%coopsF.length];
@@ -436,13 +434,15 @@ function generarDia(seed){
     else { tt="IBR"; spread=uni(r,60,180); tasa=ibr3+spread/1e4; }
     instrumentos.push({id:`F${String(i+1).padStart(2,'0')}`,tipo,coop,monto,plazo,tipo_tasa:tt,spread,tasa,dtf:tt==="DTF"});
   }
+  // Garantiza al menos un instrumento indexado a DTF (riesgo de transición).
+  if(!instrumentos.some(x=>x.dtf)){ const o=instrumentos[0]; const sp=uni(r,80,200); o.tipo_tasa="DTF"; o.spread=sp; o.tasa=de+sp/1e4; o.dtf=true; }
   const captado=instrumentos.reduce((a,x)=>a+x.monto,0);
   const invEst=captado*(1-0.025*0.7);
 
   // Demanda
   const capacidad=invEst*(1-0.15), objetivo=capacidad*1.80;
   const prima={A:0.0,B:0.0030,C:0.0075,D:0.0130};
-  const ajPlazo=d=>(d-90)/360*0.0080, baseCred=0.1300;
+  const ajPlazo=d=>(d-90)/360*0.0080, baseCred=0.1350;
   const coopsC=shuffle(r,COOPS);
   const solicitudes=[]; let total=0, orden=0;
   while(total<objetivo && orden<16){
@@ -457,6 +457,8 @@ function generarDia(seed){
     orden++;
     solicitudes.push({id:`C${String(orden).padStart(2,'0')}`,coop,monto,plazo,calif,tipo_tasa:tt,spread,tasa:nivel,orden,dtf:tt==="DTF"});
   }
+  // Garantiza al menos una solicitud indexada a DTF.
+  if(solicitudes.length&&!solicitudes.some(s=>s.dtf)){ const s=solicitudes[0]; s.tipo_tasa="DTF"; s.spread=(s.tasa-de)*1e4; s.dtf=true; }
   return {seed, tasas:{...TASAS,dtf_ea:de}, curva:{...CURVA}, instrumentos, solicitudes};
 }
 
@@ -470,7 +472,7 @@ function procesarFondeo(instrumentos, encajePct){
     encaje+=enc; inv+=it.inv; durNum+=it.monto*it.plazo; wnum+=it.monto*it.tasa;
     if(it.dtf)dtfAmt+=it.monto;
   }
-  return {instrumentos,captado,encaje,inv,cof:wnum/captado,dur:durNum/captado,dtfAmt};
+  return {instrumentos,captado,encaje,inv,cof:captado?wnum/captado:0,dur:captado?durNum/captado:0,dtfAmt};
 }
 
 /* ---- Demand & Risk Agent ---- */
@@ -492,10 +494,12 @@ function elegirTenor(baseNum, rem, pool, durF, tenores, tol){
 const tenoresPark=()=>Object.keys(CURVA).map(Number).filter(t=>t<=MAX_TENOR_PARK).sort((a,b)=>a-b);
 
 /* ---- métricas (idénticas para ambas rutas) ---- */
-function metricas(pos, cof, totalSol, horizonte){
+function metricas(pos, cof, totalSol, horizonte, costoEncajeAnual){
+  costoEncajeAnual=costoEncajeAnual||0;
   const mt=pos.reduce((a,p)=>a+p.monto,0);
   let bps=0,dur=0;
-  if(mt>0){ bps=pos.reduce((a,p)=>a+p.monto*(p.radj-cof),0)/mt*1e4; dur=pos.reduce((a,p)=>a+p.monto*p.plazo,0)/mt; }
+  if(mt>0){ const margenAnual=pos.reduce((a,p)=>a+p.monto*(p.radj-cof),0)-costoEncajeAnual;
+    bps=margenAnual/mt*1e4; dur=pos.reduce((a,p)=>a+p.monto*p.plazo,0)/mt; }
   const cop=bps/1e4*mt*(horizonte/BASE_DIAS);
   const cred=pos.filter(p=>p.clase==="CREDITO"), tes=pos.filter(p=>p.clase==="TES");
   const expos={}; for(const p of cred)expos[p.coop]=(expos[p.coop]||0)+p.monto;
@@ -506,7 +510,7 @@ function metricas(pos, cof, totalSol, horizonte){
 const posCred=(s)=>({clase:"CREDITO",ref:s.id,coop:s.coop,monto:s.monto,plazo:s.plazo,rend:s.tasa,radj:s.radj,dtf:s.dtf});
 const posTes=(monto,tenor,et)=>({clase:"TES",ref:et,coop:"MERCADO (TES)",monto,plazo:tenor,rend:CURVA[tenor],radj:CURVA[tenor],dtf:false});
 
-/* ---- Baseline Agent (FCFS) ---- */
+/* ---- Baseline Agent (por orden de llegada) ---- */
 function baseline(fund, sols, P){
   const inv=fund.inv, colchon=inv*P.minLiq, tope=inv*P.maxCoop, cap=inv-colchon;
   const tenores=tenoresPark(), durF=fund.dur;
@@ -522,17 +526,22 @@ function baseline(fund, sols, P){
   pos.push(posTes(colchon,TENOR_LIQ,"colchón"));
   const rem=cap-colocado;
   if(rem>1e-6){ const t=elegirTenor(baseNum,rem,inv,durF,tenores,P.durTol).tenor ?? tesNearestTenor(durF); pos.push(posTes(rem,t,"remanente")); }
-  const m=metricas(pos,fund.cof,sols.length,durF);
-  return {etiqueta:"Línea base (manual, FCFS)",...m};
+  const m=metricas(pos,fund.cof,sols.length,durF,fund.encaje*fund.cof);
+  return {etiqueta:"Línea base (manual · orden de llegada)",...m};
 }
 
 /* ---- Optimization Agent (búsqueda exhaustiva) ---- */
-function optimizar(fund, sols, P){
+function optimizar(fund, sols, P, incluir){
+  incluir=incluir||new Set();
   const inv=fund.inv, cof=fund.cof, durF=fund.dur;
   const colchon=inv*P.minLiq, cap=inv-colchon, tope=inv*P.maxCoop;
   const tenores=tenoresPark(), margenColchon=colchon*(CURVA[TENOR_LIQ]-cof);
   let viables=sols.filter(s=>s.monto<=cap+1e-6 && s.monto<=tope+1e-6);
-  if(viables.length>16) viables=viables.slice().sort((a,b)=>(b.radj-cof)-(a.radj-cof)).slice(0,16);
+  if(viables.length>16){ // retiene siempre las que fondeó la base (delta >=0 por construcción)
+    const forz=viables.filter(s=>incluir.has(s.id));
+    const resto=viables.filter(s=>!incluir.has(s.id)).sort((a,b)=>(b.radj-cof)-(a.radj-cof));
+    viables=forz.concat(resto.slice(0,Math.max(0,16-forz.length)));
+  }
   const n=viables.length;
   const cands=[];
   const total=1<<n;
@@ -555,7 +564,7 @@ function optimizar(fund, sols, P){
     const pos=subset.map(posCred);
     pos.push(posTes(colchon,TENOR_LIQ,"colchón"));
     if(c.rem>1e-6&&c.tenor!=null) pos.push(posTes(c.rem,c.tenor,"remanente"));
-    const m=metricas(pos,cof,sols.length,durF);
+    const m=metricas(pos,cof,sols.length,durF,fund.encaje*cof);
     top.push({etiqueta: top.length===0?"Óptima":`Alternativa ${top.length+1}`,...m});
     if(top.length===3)break;
   }
@@ -569,34 +578,42 @@ function guardrail(asig, fund, P){
   const encEsp=fund.instrumentos.filter(i=>i.tipo==="CDT_DORADO").reduce((a,i)=>a+i.monto*P.encaje,0);
   checks.push({nombre:"Encaje sobre depósitos (CDT)",ok:(desplegado<=inv+1 && Math.abs(fund.encaje-encEsp)<=1),
     limite:`Desplegado ≤ ${fmtCOP(inv)}`, obs:`${fmtCOP(desplegado)}`});
-  const tope=inv*P.maxCoop; let peor=0,pc="—";
-  for(const k in asig.expos) if(asig.expos[k]>peor){peor=asig.expos[k];pc=k;}
+  // Concentración: se RECALCULA desde las posiciones (control independiente).
+  const tope=inv*P.maxCoop; const exp={}; let peor=0,pc="—";
+  for(const p of asig.pos) if(p.clase==="CREDITO") exp[p.coop]=(exp[p.coop]||0)+p.monto;
+  for(const k in exp) if(exp[k]>peor){peor=exp[k];pc=k;}
   checks.push({nombre:"Concentración por contraparte",ok:peor<=tope+1,
     limite:`≤ ${fmtPct(P.maxCoop)} (${fmtCOP(tope)})`, obs:`${fmtPct(inv?peor/inv:0)} · ${pc}`});
   const liq=asig.pos.filter(p=>p.clase==="TES"&&p.plazo<=TENOR_LIQ).reduce((a,p)=>a+p.monto,0);
   const minL=inv*P.minLiq;
   checks.push({nombre:"Colchón mínimo de liquidez (TES corto)",ok:liq>=minL-1,
     limite:`≥ ${fmtPct(P.minLiq)} (${fmtCOP(minL)})`, obs:`${fmtCOP(liq)}`});
-  const br=Math.abs(asig.dur-fund.dur);
+  // Duración: también se RECALCULA desde las posiciones.
+  const mtp=asig.pos.reduce((a,p)=>a+p.monto,0);
+  const durDesp=mtp?asig.pos.reduce((a,p)=>a+p.monto*p.plazo,0)/mtp:0;
+  const br=Math.abs(durDesp-fund.dur);
   checks.push({nombre:"Calce de duración fondeo/despliegue",ok:br<=P.durTol+1e-6,
     limite:`brecha ≤ ${P.durTol} días`, obs:`${Math.round(br)} días (fondeo ${Math.round(fund.dur)}d)`});
   return {aprobada:checks.every(c=>c.ok),checks};
 }
 
 /* ---- Racional en lenguaje llano ---- */
-function rationale(asig, sols, fund){
+function rationale(asig, sols, fund, P){
   const inv=fund.inv;
   const ids=new Set(asig.pos.filter(p=>p.clase==="CREDITO").map(p=>p.ref));
   const fond=sols.filter(s=>ids.has(s.id)), rech=sols.filter(s=>!ids.has(s.id));
+  const cof=fund.cof, aporte=s=>s.monto*(s.radj-cof);
   const F=[];
   if(fond.length){
-    const mej=[...fond].sort((a,b)=>b.radj-a.radj).slice(0,2).map(s=>`${s.coop} (calif. ${s.calif})`);
-    F.push(`Se priorizaron las ${fond.length} solicitudes con mayor margen ajustado por pérdida esperada —encabezadas por ${mej.join(" y ")}—, desplegando ${fmtCOP(asig.montoCredito)} en crédito de tesorería.`);
+    const mej=[...fond].sort((a,b)=>aporte(b)-aporte(a)).slice(0,2).map(s=>`${s.coop} (calif. ${s.calif})`);
+    F.push(`Se seleccionó el conjunto de ${fond.length} solicitudes que maximiza el aporte total de margen ajustado por pérdida esperada, dentro de las restricciones —con mayor aporte de ${mej.join(" y ")}—, desplegando ${fmtCOP(asig.montoCredito)} en crédito de tesorería.`);
   } else { F.push("Ninguna solicitud ofreció margen ajustado por riesgo suficiente frente al TES bajo las restricciones del día; el pool permaneció en TES."); }
   if(rech.length){
     const dtfR=rech.filter(s=>s.dtf);
+    const tope=inv*P.maxCoop, binding=Object.values(asig.expos).some(v=>v>tope-1e6);
     if(dtfR.length){ F.push(`Se dejaron por fuera ${rech.length} solicitudes; entre ellas, colocaciones indexadas a DTF como la de ${dtfR[0].coop} perdieron atractivo tras el castigo por riesgo de transición DTF→IBR, pese a una tasa nominal competitiva.`); }
-    else { const peor=rech.reduce((a,b)=>b.radj<a.radj?b:a); F.push(`Se descartaron ${rech.length} solicitudes por menor margen ajustado por riesgo (p. ej. ${peor.coop}, calif. ${peor.calif}) o por chocar contra el tope de concentración.`); }
+    else if(binding){ const peor=rech.reduce((a,b)=>b.radj<a.radj?b:a); F.push(`Se descartaron ${rech.length} solicitudes: unas por aportar menos margen ajustado por riesgo (p. ej. ${peor.coop}, calif. ${peor.calif}) y otras por chocar contra el tope de concentración, que resultó vinculante.`); }
+    else { const peor=rech.reduce((a,b)=>b.radj<a.radj?b:a); F.push(`Se descartaron ${rech.length} solicitudes por aportar menos margen ajustado por riesgo dentro del cupo disponible (p. ej. ${peor.coop}, calif. ${peor.calif}); su colocación habría desplazado a otras de mayor aporte o rendido menos que el TES.`); }
   }
   const pct=inv?asig.montoTes/inv:0;
   F.push(`${fmtPct(pct)} del pool (${fmtCOP(asig.montoTes)}) quedó en TES: cubre el colchón mínimo de liquidez y ajusta la duración del despliegue a la del fondeo (calce ALM).`);
@@ -638,13 +655,14 @@ function compute(){
   const fund=procesarFondeo(rawDay.instrumentos.map(x=>({...x})), P.encaje);
   const sols=scoreRiesgo(rawDay.solicitudes.map(x=>({...x})), P.dtf);
   const base=baseline(fund,sols,P);
-  const top=optimizar(fund,sols,P);
+  const incluir=new Set(base.pos.filter(p=>p.clase==="CREDITO").map(p=>p.ref));
+  const top=optimizar(fund,sols,P,incluir);
   let optima=null,res=null,alts=[];
   const results=top.map(a=>({a,r:guardrail(a,fund,P)}));
   for(const x of results){ if(x.r.aprobada&&!optima){optima=x.a;res=x.r;} }
   if(!optima&&top.length){ optima=top[0]; res=guardrail(top[0],fund,P); }
   alts=top.filter(a=>a!==optima).slice(0,2);
-  const rat=rationale(optima,sols,fund);
+  const rat=rationale(optima,sols,fund,P);
   return {P,fund,sols,base,optima,alts,res,rat};
 }
 
@@ -675,7 +693,7 @@ function render(){
   tipBind(document.getElementById("bar-opt").parentElement,`Optimizada · ${fmtBps(optima.bps)} · ${fmtCOP(optima.cop)}`);
 
   // Strategy cards
-  document.getElementById("card-base").innerHTML=stratCard("Línea base (manual, FCFS)","base",base,sols.length);
+  document.getElementById("card-base").innerHTML=stratCard("Línea base (manual · orden de llegada)","base",base,sols.length);
   document.getElementById("card-opt").innerHTML=stratCard("Asignación optimizada","opt",optima,sols.length);
 
   // Checks

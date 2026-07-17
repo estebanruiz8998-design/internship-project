@@ -114,6 +114,20 @@ class TestGuardrailRechaza(unittest.TestCase):
         liq = next(c for c in res.checks if "liquidez" in c.nombre.lower())
         self.assertFalse(liq.aprobado)
 
+    def test_ignora_campos_spoofeados(self):
+        """El control es independiente: recalcula desde posiciones, no confía en
+        los campos que puebla el optimizador (concentración y duración)."""
+        snapshot, pool, sol = _pipeline(20260717)
+        top = OptimizationAgent(snapshot).optimizar(pool, sol)
+        guard = GuardrailAgent(pool)
+        opt = top[0]
+        self.assertTrue(guard.validar(opt).aprobada)
+        # Se corrompen los campos poblados por el optimizador con valores que,
+        # de ser creídos, dispararían un rechazo. El guardrail debe ignorarlos.
+        opt.duracion_ponderada_dias = 99999.0
+        opt.exposicion_por_cooperativa = {"Falsa": pool.monto_invertible * 10}
+        self.assertTrue(guard.validar(opt).aprobada)
+
 
 class TestComparacion(unittest.TestCase):
     def test_delta_no_negativo_y_optima_aprobada(self):

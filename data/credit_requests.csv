@@ -1,17 +1,17 @@
 id,cooperativa,monto_solicitado,plazo_dias,calificacion,tipo_tasa,spread_bps,tasa_ofrecida_ea,orden_llegada
-C01,Coop. de Ahorro y Crédito Los Andes,780000000,180,B,IBR,200.1,0.138513,1
-C02,Cooperativa Educativa Nueva Granada,1730000000,120,A,IBR,93.0,0.127800,2
-C03,Coop. de Vivienda Ciudad Región,3000000000,120,A,IBR,116.1,0.130113,3
-C04,Cooperativa de Transportadores Unidos del Sur,3000000000,90,A,FIJA,0.0,0.128531,4
-C05,Cooperativa Financiera del Altiplano,3000000000,120,A,IBR,119.9,0.130487,5
-C06,Cooperativa Lechera del Norte,2670000000,180,A,IBR,74.4,0.125936,6
-C07,Cooperativa Agraria del Valle Verde,930000000,90,C,FIJA,0.0,0.141659,7
-C08,Coop. Multiactiva Horizonte,2670000000,90,B,FIJA,0.0,0.128065,8
-C09,Cooperativa Industrial del Caribe,2490000000,90,D,IBR,301.3,0.148629,9
-C10,Cooperativa Popular de Boyacá,880000000,120,A,IBR,63.2,0.124820,10
-C11,Cooperativa El Progreso del Oriente,3000000000,180,A,DTF,232.8,0.131338,11
-C12,Fondo Solidario de los Llanos,1730000000,90,B,IBR,129.9,0.131492,12
-C13,Cooperativa de Comerciantes del Pacífico,2770000000,120,B,FIJA,0.0,0.130279,13
-C14,Fondo de Empleados Solidaridad Andina,3000000000,120,A,FIJA,0.0,0.136050,14
-C15,Fondo Cooperativo del Café,1840000000,120,C,FIJA,0.0,0.138986,15
-C16,Cooperativa Médica San Rafael,3000000000,180,B,IBR,187.4,0.137244,16
+C01,Coop. de Ahorro y Crédito Los Andes,780000000,180,B,IBR,250.1,0.143513,1
+C02,Cooperativa Educativa Nueva Granada,1730000000,120,A,IBR,143.0,0.132800,2
+C03,Coop. de Vivienda Ciudad Región,3000000000,120,A,IBR,166.1,0.135113,3
+C04,Cooperativa de Transportadores Unidos del Sur,3000000000,90,A,FIJA,0.0,0.133531,4
+C05,Cooperativa Financiera del Altiplano,3000000000,120,A,IBR,169.9,0.135487,5
+C06,Cooperativa Lechera del Norte,2670000000,180,A,IBR,124.4,0.130936,6
+C07,Cooperativa Agraria del Valle Verde,930000000,90,C,FIJA,0.0,0.146659,7
+C08,Coop. Multiactiva Horizonte,2670000000,90,B,FIJA,0.0,0.133065,8
+C09,Cooperativa Industrial del Caribe,2490000000,90,D,IBR,351.3,0.153629,9
+C10,Cooperativa Popular de Boyacá,880000000,120,A,IBR,113.2,0.129820,10
+C11,Cooperativa El Progreso del Oriente,3000000000,180,A,DTF,282.8,0.136338,11
+C12,Fondo Solidario de los Llanos,1730000000,90,B,IBR,179.9,0.136492,12
+C13,Cooperativa de Comerciantes del Pacífico,2770000000,120,B,FIJA,0.0,0.135279,13
+C14,Fondo de Empleados Solidaridad Andina,3000000000,120,A,FIJA,0.0,0.141050,14
+C15,Fondo Cooperativo del Café,1840000000,120,C,FIJA,0.0,0.143986,15
+C16,Cooperativa Médica San Rafael,3000000000,180,B,IBR,237.4,0.142244,16

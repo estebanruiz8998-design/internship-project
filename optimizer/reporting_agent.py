@@ -115,7 +115,7 @@ def _panel_estrategia(a: Asignacion, cof: float, destacada: bool) -> str:
             f'<div class="row"><span class="row-k">{_e(k)}</span>'
             f'<span class="row-v">{_e(v)}</span></div>'
         )
-    titulo = "Asignación optimizada" if destacada else "Línea base (manual, FCFS)"
+    titulo = "Asignación optimizada" if destacada else "Línea base (manual · por orden de llegada)"
     return f'<div class="{clase}"><h3>{_e(titulo)}</h3>{cuerpo}</div>'
 
 
@@ -205,12 +205,15 @@ def _alternativas(alts: list[Asignacion], baseline_cop: float) -> str:
     filas = ""
     for a in alts:
         delta = a.margen_cop_total - baseline_cop
+        pos = delta >= -1.0
+        sg = "+" if pos else "−"
+        col = _COL_GOOD if pos else _COL_CRIT
         filas += (
             f'<tr><td>{_e(a.etiqueta)}</td>'
             f'<td class="mono num">{_e(formato_bps(a.margen_bps))}</td>'
             f'<td class="mono num">{_e(formato_cop(a.margen_cop_total))}</td>'
             f'<td class="mono num">{_e(a.creditos_fondeados)} créditos</td>'
-            f'<td class="mono num" style="color:{_COL_GOOD}">+{_e(formato_cop(delta))}</td>'
+            f'<td class="mono num" style="color:{col}">{sg}{_e(formato_cop(abs(delta)))}</td>'
             f'</tr>'
         )
     return (
@@ -310,6 +313,16 @@ class ReportingAgent:
     ) -> str:
         delta_cop = optimizada.margen_cop_total - baseline.margen_cop_total
         delta_bps = optimizada.margen_bps - baseline.margen_bps
+        pos = delta_cop >= -1.0
+        signo = "+" if pos else "−"
+        flecha = "▲" if pos else "▼"
+        color_delta = _COL_GOOD if pos else _COL_CRIT
+
+        # La sección de alternativas solo se muestra si hay alternativas.
+        seccion_alts = (
+            '<h2 class="sec">Alternativas evaluadas</h2>'
+            + _alternativas(alternativas, baseline.margen_cop_total)
+        ) if alternativas else ""
 
         cuerpo = f"""
 <div class="page">
@@ -342,8 +355,8 @@ class ReportingAgent:
       <div class="hero-sub">Mismo pool, mismas reglas de cumplimiento · dos rutas de código distintas</div>
     </div>
     <div>
-      <div class="hero-v">+{_e(formato_cop(delta_cop))}</div>
-      <div class="hero-bps">▲ +{_e(formato_bps(delta_bps))} de margen anualizado</div>
+      <div class="hero-v" style="color:{color_delta}">{signo}{_e(formato_cop(abs(delta_cop)))}</div>
+      <div class="hero-bps" style="color:{color_delta}">{flecha} {signo}{_e(formato_bps(abs(delta_bps)))} de margen anualizado</div>
     </div>
   </div>
 
@@ -358,8 +371,7 @@ class ReportingAgent:
   <h2 class="sec">Detalle de decisiones por solicitud</h2>
   {_tabla_decisiones(solicitudes, optimizada, baseline)}
 
-  <h2 class="sec">Alternativas evaluadas</h2>
-  {_alternativas(alternativas, baseline.margen_cop_total)}
+  {seccion_alts}
 
   <footer class="foot">
     Esta corrida utiliza datos sintéticos/ilustrativos, estructurados sobre los

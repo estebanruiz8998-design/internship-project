@@ -93,7 +93,7 @@ class BaselineAgent:
                 etiqueta=f"TES {tenor_rem}d (remanente)",
             ))
 
-        asignacion = Asignacion(etiqueta="Línea base (manual, FCFS)", posiciones=posiciones)
+        asignacion = Asignacion(etiqueta="Línea base (manual · orden de llegada)", posiciones=posiciones)
         asignacion.rationale = (
             "Se atendieron las solicitudes en orden de llegada hasta agotar el "
             "cupo disponible, sin priorizar por margen ajustado por riesgo; el "
@@ -102,5 +102,6 @@ class BaselineAgent:
         calcular_metricas_asignacion(
             asignacion, pool.costo_fondos_ea, len(solicitudes),
             horizonte_dias=dur_fondeo,
+            costo_encaje_anual=pool.encaje_total * pool.costo_fondos_ea,
         )
         return asignacion
