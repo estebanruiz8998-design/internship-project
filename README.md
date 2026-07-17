@@ -8,11 +8,16 @@ básicos (bps)** y en **pesos (COP)**.
 
 Hay dos salidas, ambas en español:
 
-1. **Panel interactivo** (`docs/dashboard.html`) — un tablero autocontenido donde
-   se pueden **mover los parámetros de cumplimiento** (encaje, concentración,
-   liquidez, tolerancia de duración, castigo DTF) y **cambiar de día**: el
-   optimizador y el control de cumplimiento **recalculan en vivo**. Ábrelo con
-   doble clic en cualquier navegador (no requiere servidor ni instalación).
+1. **Terminal de mesa interactivo** (`docs/dashboard.html`) — un tablero
+   autocontenido con estética de mesa de renta fija: ticker de mercado, reloj de
+   sesión, y un **puente de margen (bridge)** que descompone la utilidad
+   adicional (retira colocaciones de menor aporte, incorpora las de mayor aporte,
+   ajusta el carry en TES) más un **blotter** con el aporte de margen por
+   solicitud. Se pueden **mover los parámetros de cumplimiento** (encaje,
+   concentración, liquidez, tolerancia de duración, castigo DTF) y **cambiar de
+   jornada**: el optimizador y el control de cumplimiento **recalculan en vivo**.
+   Lleva un rótulo visible de entorno **SIMULACIÓN · DATOS SINTÉTICOS**. Ábrelo
+   con doble clic en cualquier navegador (no requiere servidor ni instalación).
 2. **Informe de una página** (`reports/informe_tesoreria.html`) — un memo estático
    listo para imprimir/enviar a un supervisor, que genera el motor en Python.
 
