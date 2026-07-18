@@ -190,6 +190,29 @@
   .rationale{font-size:13px;line-height:1.6;color:var(--ink);border-left:3px solid var(--accent);background:var(--surface-2);padding:12px 14px;border-radius:0 9px 9px 0}
   footer{margin-top:20px;font-size:10.5px;color:var(--muted);line-height:1.6;text-align:center;padding:0 8px}
 
+  /* Cartera recomendada + analista */
+  .subhead{font-size:11.5px;color:var(--ink-soft);margin:-4px 0 12px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .analyst{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:750;color:var(--accent-2);
+    background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:3px 10px;letter-spacing:.02em}
+  .analyst .adot{width:7px;height:7px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 3px rgba(55,212,208,.18)}
+  .cartera{display:flex;flex-direction:column;gap:10px}
+  .pos{border:1px solid var(--line);border-left:3px solid var(--pos);border-radius:10px;padding:12px 14px;background:var(--surface-2)}
+  .pos-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .pos-id{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .pos-name{font-size:14.5px;font-weight:750;letter-spacing:-.01em}
+  .pos-rank{margin-left:auto;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .pos-m{display:flex;flex-wrap:wrap;gap:18px;margin:10px 0 9px}
+  .pos-m>div{display:flex;flex-direction:column;gap:1px}
+  .pos-m .ml{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .pos-m .mv{font-family:var(--mono);font-size:13.5px;font-weight:700}
+  .pos-why{font-size:12.5px;color:var(--ink-soft);line-height:1.55;border-top:1px dashed var(--line);padding-top:8px}
+  .pos-why b{color:var(--ink)}
+  .subhead2{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:750;margin:16px 0 8px}
+  .posr{border:1px solid var(--line-soft);border-radius:9px;padding:9px 12px;background:var(--surface)}
+  .posr-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:600}
+  .posr-h .mono{color:var(--muted);font-weight:600}
+  .posr .pos-why{margin-top:5px;font-size:11.5px;border-top:none;padding-top:0}
+
   #tip{position:fixed;z-index:60;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s;
     background:var(--surface-3);color:var(--ink);border:1px solid var(--line);font-size:11.5px;font-family:var(--mono);
     padding:6px 9px;border-radius:7px;box-shadow:0 8px 22px rgba(0,0,0,.4);max-width:240px;line-height:1.45}
@@ -274,6 +297,15 @@
         </div>
       </div>
 
+      <div class="card pad">
+        <h2>Cartera recomendada de la jornada <span class="tag2" id="cartera-count"></span></h2>
+        <div class="subhead">Colocaciones que el optimizador decidió hacer, con el detalle completo y el porqué de cada decisión.
+          <span class="analyst"><span class="adot"></span>Analista de crédito · agente de riesgo</span></div>
+        <div class="cartera" id="cartera-fund"></div>
+        <div class="subhead2">Solicitudes no seleccionadas — criterio del analista</div>
+        <div class="cartera" id="cartera-rech"></div>
+      </div>
+
       <div class="cmp">
         <div class="stratcard" id="card-base"></div>
         <div class="stratcard o" id="card-opt"></div>
@@ -322,6 +354,8 @@
 <div id="tip"></div>
 
 <script>
+
+
 
 "use strict";
 /* ====================================================================
@@ -676,6 +710,65 @@ function svgBridge(steps){
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Puente de margen de la línea base a la optimizada">${g}</svg>`;
 }
 
+/* ---- "Analista de crédito": explica cada decisión con los números reales ---- */
+function motivo(s, funded, cof, ap, concBinding){
+  const vsCof=Math.round((s.radj-cof)*1e4);
+  if(funded){
+    const parts=[`rinde <b>${fmtPct(s.radj)}</b> ajustado por pérdida esperada, <b>${vsCof} pb</b> por encima del costo de fondos`];
+    if(s.calif==="A"||s.calif==="B") parts.push(`contraparte sólida (calif. ${s.calif}), baja probabilidad de impago`);
+    else parts.push(`aun con la pérdida esperada de una calif. ${s.calif}, el spread sigue siendo positivo`);
+    if(s.dtf) parts.push(`atractiva incluso tras el castigo por transición DTF→IBR`);
+    parts.push(`aporta <b>+${fmtCOP(ap)}</b> al margen de la jornada`);
+    return "<b>Seleccionada.</b> "+parts.join("; ")+".";
+  }
+  if(s.radj < cof){
+    let t=`<b>Descartada.</b> Su rendimiento ajustado por riesgo (<b>${fmtPct(s.radj)}</b>) no cubre el costo de fondos (<b>${fmtPct(cof)}</b>): colocarla restaría margen.`;
+    if(s.calif==="C"||s.calif==="D") t+=` La pérdida esperada de una contraparte calif. ${s.calif} la penaliza.`;
+    if(s.dtf) t+=` (Además, el castigo por transición DTF ya reduce su rendimiento.)`;
+    return t;
+  }
+  if(concBinding) return `<b>Descartada.</b> ${s.coop} ya alcanzó el tope de concentración por contraparte permitido para el día; sumar esta colocación lo superaría.`;
+  // Aporte positivo pero fuera de la combinación óptima (problema combinatorio).
+  let t=`<b>Descartada por optimización de cartera.</b> Aunque su aporte es positivo (<b>+${fmtCOP(ap)}</b>), el optimizador eligió la <b>combinación</b> de colocaciones que maximiza el margen total respetando el cupo, la concentración y el calce de duración; esta no forma parte de esa combinación óptima.`;
+  if(s.dtf) t+=` El castigo por transición DTF→IBR ya había recortado su rendimiento ajustado.`;
+  return t;
+}
+
+function renderCartera(R){
+  const {fund,sols,optima}=R;
+  const cof=fund.cof, H=fund.dur, tope=fund.inv*R.P.maxCoop;
+  const idsO=new Set(optima.pos.filter(p=>p.clase==="CREDITO").map(p=>p.ref));
+  const expo={}; optima.pos.filter(p=>p.clase==="CREDITO").forEach(p=>expo[p.coop]=(expo[p.coop]||0)+p.monto);
+  const withAp=s=>({s,ap:contribCOP(s.monto,s.radj,cof,H)});
+  const funded=sols.filter(s=>idsO.has(s.id)).map(withAp).sort((a,b)=>b.ap-a.ap);
+  const rejected=sols.filter(s=>!idsO.has(s.id)).map(withAp).sort((a,b)=>b.ap-a.ap);
+
+  document.getElementById("cartera-count").textContent=`${funded.length} colocaciones · ${fmtCOP(optima.montoCredito)}`;
+  document.getElementById("cartera-fund").innerHTML=funded.map(({s,ap},i)=>`
+    <div class="pos">
+      <div class="pos-h"><span class="pos-id">${s.id}</span><span class="pos-name">${s.coop}</span>
+        <span class="cal ${s.calif}">${s.calif}</span>${s.dtf?'<span class="tag">DTF</span>':''}
+        <span class="pos-rank">#${i+1} por aporte</span></div>
+      <div class="pos-m">
+        <div><span class="ml">Monto</span><span class="mv">${fmtCOP(s.monto)}</span></div>
+        <div><span class="ml">Plazo</span><span class="mv">${s.plazo} días</span></div>
+        <div><span class="ml">Tipo tasa</span><span class="mv">${s.tipo_tasa}</span></div>
+        <div><span class="ml">Tasa</span><span class="mv">${fmtPct(s.tasa)}</span></div>
+        <div><span class="ml">Aj. riesgo</span><span class="mv">${fmtPct(s.radj)}</span></div>
+        <div><span class="ml">Aporte margen</span><span class="mv up">+${fmtCOP(ap)}</span></div>
+      </div>
+      <div class="pos-why">${motivo(s,true,cof,ap,false)}</div>
+    </div>`).join("");
+
+  document.getElementById("cartera-rech").innerHTML=rejected.map(({s,ap})=>{
+    const conc=(expo[s.coop]||0)>tope-1e6;
+    return `<div class="posr"><div class="posr-h"><span class="mono">${s.id}</span><span>${s.coop}</span>
+      <span class="cal ${s.calif}">${s.calif}</span>${s.dtf?'<span class="tag">DTF</span>':''}
+      <span style="margin-left:auto" class="mono ${ap>=0?'up':'down'}">${ap>=0?'+':'−'}${fmtCOPmm(Math.abs(ap)).replace('$ ','$')}</span></div>
+      <div class="pos-why">${motivo(s,false,cof,ap,conc)}</div></div>`;
+  }).join("");
+}
+
 /* ---- Ticker de mercado (con variaciones intradía simuladas por jornada) ---- */
 function buildTicker(day){
   const r=rngFrom((day.seed^0x9e3779b9)>>>0);
@@ -727,6 +820,8 @@ function render(){
   document.getElementById("bridge").innerHTML=svgBridge(br.steps);
   document.getElementById("bridge-cap").innerHTML=
     `Se reasigna el mismo capital: se retiran <b>${br.nDrop}</b> colocaciones de menor aporte ajustado por riesgo y se incorporan <b>${br.nAdd}</b> de mayor aporte, ajustando el carry en TES. Neto: <b style="color:${posx?'var(--pos)':'var(--neg)'}">${posx?'+':'−'}${fmtCOP(Math.abs(dCop))}</b>.`;
+
+  renderCartera(R);
 
   document.getElementById("card-base").innerHTML=stratCard("Línea base (manual · orden de llegada)","base",base,sols.length);
   document.getElementById("card-opt").innerHTML=stratCard("Asignación optimizada","opt",optima,sols.length);
